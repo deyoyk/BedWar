@@ -36,6 +36,23 @@ public class BedWarAdminCommand extends Command {
 
     private final LanguageManager language = BedWarMain.getLanguage();
 
+    private void sendHelpMessage(CommandSender sender, String valueData) {
+        sender.sendMessage(language.getLanguage("command-admin-help1","Room Setup Commands:"));
+        sender.sendMessage(language.getLanguage("command-create","/[1] create <name> - Create a new room", valueData));
+        sender.sendMessage(language.getLanguage("command-setspawn","/[1] setspawn <team> - Set team spawn point", valueData));
+        sender.sendMessage(language.getLanguage("command-setbed","/[1] setbed <team> - Set team bed location", valueData));
+        sender.sendMessage(language.getLanguage("command-setshop","/[1] setshop <team> - Set team shop location", valueData));
+        sender.sendMessage(language.getLanguage("command-setwait","/[1] setwait - Set waiting lobby location", valueData));
+        sender.sendMessage(language.getLanguage("command-finish","/[1] finish - Complete room setup", valueData));
+        
+        sender.sendMessage(language.getLanguage("command-admin-help2","Other Commands:"));
+        sender.sendMessage(language.getLanguage("command-admin-reload","/[1] reload - Reload configuration",valueData));
+        sender.sendMessage(language.getLanguage("command-admin-see","/[1] see - View all loaded rooms",valueData));
+        sender.sendMessage(language.getLanguage("command-admin-close","/[1] close <name> - Close a room",valueData));
+        sender.sendMessage(language.getLanguage("command-admin-start","/[1] start <name> - Force start a game",valueData));
+        sender.sendMessage(language.getLanguage("command-admin-status","/[1] status - View thread status",valueData));
+    }
+
     public BedWarAdminCommand(String name) {
         super(name);
         this.usageMessage = language.getLanguage("command-admin-usage","/[1] help 查看指令帮助",BedWarMain.COMMAND_ADMIN_NAME);
@@ -78,34 +95,82 @@ public class BedWarAdminCommand extends Command {
             BedWarMain.sendMessageToObject(language.getLanguage("command-admin-no-permission","&c你没有使用此指令的权限"),commandSender);
             return true;
         }
-        String valueData = BedWarMain.COMMAND_ADMIN_NAME;
-        if (strings.length > 0 && "help".equalsIgnoreCase(strings[0])) {
-            commandSender.sendMessage(language.getLanguage("command-admin-help1","只需要输入/[1] 就可以了",
-                    valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-help2","其他指令介绍:"));
-
-            commandSender.sendMessage(language.getLanguage("command-admin-reload","/[1] reload 重新载入配置",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-set","/[1] set [名称] 创建一个自定义房间模板",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-tsl","/[1] tsl 读取模板的队伍数据",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-see","/[1] see 查看所有加载的房间",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-save-item","/[1] si [名称] 将手持的物品保存到配置文件中",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-close","/[1] close [名称] 关闭房间",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-start","/[1] start [名称] 强行启动游戏",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-exp","/[1] exp [玩家] [数量] <由来> 增加玩家经验",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-status","/[1] status 查看线程状态",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-end","/[1] end 停止模板预设",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-robot","/[1] robot [房间名称] [数量] 向游戏房间内增加测试机器人",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-float","/[1] float add/remove [房间名称] [名称] [文本] 在脚下设置浮空字/删除浮空字",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-cancel","/[1] cancel 终止房间创建",valueData));
-            commandSender.sendMessage(language.getLanguage("command-admin-top","/[1] top add/remove [名称] [类型] [房间(可不填)] 创建/删除排行榜",valueData));
-            StringBuilder v = new StringBuilder(language.getLanguage("top-type","类型: "));
-            for(PlayerData.DataType type: PlayerData.DataType.values()){
-                v.append(type.getName()).append(" , ");
-            }
-            commandSender.sendMessage(v.toString());
-            return true;
-
+        if(!commandSender.isPlayer()){
+            commandSender.sendMessage(language.getLanguage("do-not-console","请不要在控制台执行"));
+            return false;
         }
+        String valueData = BedWarMain.COMMAND_ADMIN_NAME;
+        if (strings.length == 0 || "help".equalsIgnoreCase(strings[0])) {
+            sendHelpMessage(commandSender, valueData);
+            return true;
+        }
+
+        switch (strings[0].toLowerCase()) {
+            case "create":
+                if (strings.length < 2) {
+                    commandSender.sendMessage(language.getLanguage("create-room-usage", "/[1] create <name> - Create a new room", valueData));
+                    return false;
+                }
+                return createSetRoom(commandSender, strings[1]);
+
+            case "setspawn":
+                if (strings.length < 2) {
+                    commandSender.sendMessage(language.getLanguage("set-spawn-usage", "/[1] setspawn <team> - Set team spawn point", valueData));
+                    return false;
+                }
+                GameRoomCreater creater = create.get(commandSender.getName());
+                if (creater == null) {
+                    commandSender.sendMessage(language.getLanguage("no-room-creating", "&cYou are not creating any room"));
+                    return false;
+                }
+                creater.setTeamSpawn(strings[1], ((Player)commandSender).getPosition());
+                return true;
+
+            case "setbed":
+                if (strings.length < 2) {
+                    commandSender.sendMessage(language.getLanguage("set-bed-usage", "/[1] setbed <team> - Set team bed location", valueData));
+                    return false;
+                }
+                creater = create.get(commandSender.getName());
+                if (creater == null) {
+                    commandSender.sendMessage(language.getLanguage("no-room-creating", "&cYou are not creating any room"));
+                    return false;
+                }
+                creater.setTeamBed(strings[1], ((Player)commandSender).getPosition());
+                return true;
+
+            case "setshop":
+                if (strings.length < 2) {
+                    commandSender.sendMessage(language.getLanguage("set-shop-usage", "/[1] setshop <team> - Set team shop location", valueData));
+                    return false;
+                }
+                creater = create.get(commandSender.getName());
+                if (creater == null) {
+                    commandSender.sendMessage(language.getLanguage("no-room-creating", "&cYou are not creating any room"));
+                    return false;
+                }
+                creater.setTeamShop(strings[1], ((Player)commandSender).getPosition());
+                return true;
+
+            case "setwait":
+                creater = create.get(commandSender.getName());
+                if (creater == null) {
+                    commandSender.sendMessage(language.getLanguage("no-room-creating", "&cYou are not creating any room"));
+                    return false;
+                }
+                creater.setWaitSpawn(((Player)commandSender).getPosition());
+                return true;
+
+            case "finish":
+                creater = create.get(commandSender.getName());
+                if (creater == null) {
+                    commandSender.sendMessage(language.getLanguage("no-room-creating", "&cYou are not creating any room"));
+                    return false;
+                }
+                if (!creater.finish()) {
+                    commandSender.sendMessage(language.getLanguage("create-room-error", "&cFailed to create room"));
+                }
+                return true;
         if (strings.length == 0) {
             if(!commandSender.isPlayer()){
                 commandSender.sendMessage(language.getLanguage("do-not-console","请不要在控制台执行"));
